@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Tools FREE - No Premium</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body{background:#0a0a0a;color:white;font-family:system-ui}
+.glass{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);backdrop-filter:blur(10px)}
+</style>
+</head>
+<body class="p-4">
+<div class="max-w-4xl mx-auto">
+  <h1 class="text-3xl font-black mt-6">My Tools <span class="text-purple-500">FREE</span></h1>
+  <p class="text-gray-400">100% Free, No Premium Lock - By Ardian</p>
+
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-8">
+    <button onclick="openTool('qr')" class="glass p-6 rounded-2xl">📱<br>QR Generator</button>
+    <button onclick="openTool('compress')" class="glass p-6 rounded-2xl">🗜️<br>Compress Foto</button>
+    <button onclick="openTool('word')" class="glass p-6 rounded-2xl">📝<br>Word Counter</button>
+    <button onclick="openTool('pass')" class="glass p-6 rounded-2xl">🔑<br>Password Gen</button>
+    <button onclick="openTool('tiktok')" class="glass p-6 rounded-2xl">⬇️<br>TikTok DL</button>
+  </div>
+
+  <!-- TOOL AREA -->
+  <div id="toolBox" class="glass mt-8 p-6 rounded-2xl hidden"></div>
+</div>
+
+<script>
+function openTool(t){
+  const box=document.getElementById('toolBox');
+  box.classList.remove('hidden');
+  if(t=='qr'){
+    box.innerHTML=`<h2 class="text-xl font-bold">QR Generator - FREE</h2>
+    <input id="qrtext" placeholder="Masukin link / teks" class="w-full mt-4 p-3 rounded-xl bg-black border border-white/20">
+    <button onclick="genQR()" class="mt-4 bg-purple-600 p-3 rounded-xl w-full">Generate QR</button>
+    <div id="qrout" class="mt-4 flex justify-center"></div>`;
+  }
+  if(t=='compress'){
+    box.innerHTML=`<h2 class="text-xl font-bold">Compress Foto - FREE</h2>
+    <input type="file" id="imgIn" accept="image/*" class="mt-4">
+    <canvas id="c" class="hidden"></canvas>
+    <button onclick="compress()" class="mt-4 bg-purple-600 p-3 rounded-xl w-full">Compress & Download</button>`;
+  }
+  if(t=='word'){
+    box.innerHTML=`<h2 class="text-xl font-bold">Word Counter - FREE</h2>
+    <textarea id="txt" rows="6" placeholder="Ketik disini..." class="w-full mt-4 p-3 rounded-xl bg-black border border-white/20"></textarea>
+    <p id="count" class="mt-2 text-gray-400">0 kata, 0 karakter</p>`;
+    document.getElementById('txt').oninput=(e)=>{let v=e.target.value; document.getElementById('count').innerText=`${v.split(/\\s+/).filter(x=>x).length} kata, ${v.length} karakter`;}
+  }
+  if(t=='pass'){
+    box.innerHTML=`<h2 class="text-xl font-bold">Password Generator - FREE</h2>
+    <p id="passout" class="mt-4 p-3 bg-black rounded-xl font-mono text-xl">Klik Generate</p>
+    <button onclick="genPass()" class="mt-4 bg-purple-600 p-3 rounded-xl w-full">Generate Password</button>`;
+  }
+  if(t=='tiktok'){
+    box.innerHTML=`<h2 class="text-xl font-bold">TikTok Downloader - FREE (UI)</h2>
+    <input placeholder="Paste link TikTok" class="w-full mt-4 p-3 rounded-xl bg-black border border-white/20">
+    <button class="mt-4 bg-purple-600 p-3 rounded-xl w-full">Download (Butuh API)</button>
+    <p class="text-xs text-gray-500 mt-2">*Untuk download beneran butuh backend, tapi UI nya udah jadi kayak Nexora</p>`;
+  }
+}
+function genQR(){
+  let txt=document.getElementById('qrtext').value;
+  if(!txt)return alert('Isi dulu');
+  document.getElementById('qrout').innerHTML=`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(txt)}">`;
+}
+function genPass(){
+  let chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+  let p=""; for(let i=0;i<16;i++) p+=chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('passout').innerText=p;
+}
+function compress(){
+  let file=document.getElementById('imgIn').files[0];
+  if(!file)return alert('Pilih foto');
+  let img=new Image(); img.src=URL.createObjectURL(file);
+  img.onload=()=>{let c=document.getElementById('c'); c.width=img.width*0.5; c.height=img.height*0.5; c.getContext('2d').drawImage(img,0,0,c.width,c.height); let a=document.createElement('a'); a.download='compressed.jpg'; a.href=c.toDataURL('image/jpeg',0.6); a.click();}
+}
+</script>
+</body>
+</html>
