@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SVG to AM XML Converter (Advanced)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { background: #0f0f0f; color: #fff; font-family: sans-serif; padding: 16px; margin: 0; }
+    h1 { color: #a855f7; text-align: center; margin-bottom: 20px; }
+    .card { background: #1e1e1e; border-radius: 16px; padding: 16px; margin: 12px auto; border: 1px solid #333; max-width: 600px; }
+    textarea { width: 100%; height: 100px; background: #111; color: #0f0; border-radius: 10px; padding: 10px; border: 1px solid #333; margin-top: 10px; font-family: monospace; resize: vertical; }
+    button { width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: bold; margin-top: 10px; cursor: pointer; transition: opacity 0.2s; }
+    button:hover { opacity: 0.9; }
+    input[type="file"] { width: 100%; padding: 10px; background: #111; border-radius: 10px; border: 1px dashed #a855f7; color: #fff; }
+    
+    /* Container Preview */
+    .preview-box { width: 100%; height: 200px; background: #111; border: 1px solid #333; border-radius: 10px; margin-top: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .preview-box svg { max-width: 100%; max-height: 100%; }
+    .label { font-size: 12px; color: #aaa; margin-top: 10px; display: block; }
+  </style>
+</head>
+<body>
+
+<h1>SVG to AM XML</h1>
+
+<div class="card">
+  <input type="file" id="f" accept=".svg">
+  
+  <span class="label">Preview Vector:</span>
+  <div id="pv" class="preview-box">
+    <span style="color:#555">Belum ada SVG</span>
+  </div>
+
+  <textarea id="in" placeholder="Paste kode SVG di sini..."></textarea>
+  
+  <button onclick="convert()" style="background:#a855f7; color:#fff">CONVERT TO AM XML</button>
+  
+  <textarea id="out" placeholder="Hasil XML Alight Motion" readonly></textarea>
+  <button onclick="down()" style="background:#22c55e; color:#fff">DOWNLOAD XML</button>
+  
+  <div id="s" style="text-align:center; color:#888; margin-top:10px;">Siap</div>
+</div>
+
+<script>
+let lastXML = "";
+let fileName = "svg_import";
+
+// Handle Unggah File SVG
+document.getElementById('f').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  fileName = file.name.replace(/\.svg$/i, '');
+  const r = new FileReader();
+  r.onload = ev => {
+    const svgCode = ev.target.result;
+    document.getElementById('in').value = svgCode;
+    updatePreview(svgCode);
+  };
+  r.readAsText(file);
+});
+
+// Update Preview saat Teks Input Berubah
+document.getElementById('in').addEventListener('input', e => {
+  updatePreview(e.target.value);
+});
+
+function updatePreview(xmlStr) {
+  const pvBox = document.getElementById('pv');
+  if (!xmlStr.trim()) {
+    pvBox.innerHTML = '<span style="color:#555">Belum ada SVG</span>';
+    return;
+  }
+  pvBox.innerHTML = xmlStr;
+}
+
+// Menangani Pembacaan Warna Gradient / Defs
+function getGradients(doc) {
+  const grads = {};
+  doc.querySelectorAll('linearGradient, radialGradient').forEach(g => {
+    const id = g.getAttribute('id');
+    if (!id) return;
+    const stops = [];
+    g.querySelectorAll('stop').forEach(s => {
+      stops.push({
+        offset: s.getAttribute('offset') || '0%',
+        color: s.getAttribute('stop-color') || '#ffffff',
+        opacity: s.getAttribute('stop-opacity') || '1'
+      });
+    });
+    grads[`url(#${id})`] = {
+      type: g.tagName.toLowerCase(),
+      stops: stops
+    };
+  });
+  return grads;
+}
+
+function convert() {
+  const t = document.getElementById('in').value;
+  if (!t.trim()) {
+    document.getElementById('s').innerText = "Input SVG kosong!";
+    return;
+  }
+
+  const p = new DOMParser();
+  const d = p.parseFromString(t, "image/svg+xml");
+  const gradients = getGradients(d);
+  let layers = "";
+
+  // Seleksi bentuk dasar & elemen kelompok (g)
+  const elements = d.querySelectorAll('path, rect, circle, ellipse, polygon, polyline');
+  
+  elements.forEach((el, i) => {
+    let D = "";
+    const tag = el.tagName.toLowerCase();
+
+    // 1. Path Parsing dasar untuk berbagai elemen SVG
+    if (tag === 'path') {
+      D = el.getAttribute('d') || "";
+    } else if (tag === 'rect') {
+      let x = parseFloat(el.getAttribute('x') || 0);
+      let y = parseFloat(el.getAttribute('y') || 0);
+      let w = parseFloat(el.getAttribute('width') || 0);
+      let h = parseFloat(el.getAttribute('height') || 0);
+      D = `M ${x} ${y} H ${x + w} V ${y + h} H ${x} Z`;
+    } else if (tag === 'circle') {
+      let cx = parseFloat(el.getAttribute('cx') || 0);
+      let cy = parseFloat(el.getAttribute('cy') || 0);
+      let r = parseFloat(el.getAttribute('r') || 0);
+      D = `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy}`;
+    } else if (tag === 'ellipse') {
+      let cx = parseFloat(el.getAttribute('cx') || 0);
+      let cy = parseFloat(el.getAttribute('cy') || 0);
+      let rx = parseFloat(el.getAttribute('rx') || 0);
+      let ry = parseFloat(el.getAttribute('ry') || 0);
+      D = `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy}`;
+    } else if (tag === 'polygon' || tag === 'polyline') {
+      let pts = (el.getAttribute('points') || "").trim().split(/\s+|,/);
+      if (pts.length >= 2) {
+        D = `M ${pts[0]} ${pts[1]}`;
+        for (let j = 2; j < pts.length; j += 2) {
+          if (pts[j] && pts[j+1]) D += ` L ${pts[j]} ${pts[j+1]}`;
+        }
+        if (tag === 'polygon') D += " Z";
+      }
+    }
+
+    // 2. Ekstraksi Warna & Penanganan Gradient
+    let rawFill = el.getAttribute('fill') || "#ffffff";
+    let fillAttr = "";
+
+    if (rawFill.startsWith("url(")) {
+      const gradData = gradients[rawFill];
+      if (gradData) {
+        let stopXml = gradData.stops.map(s => `<stop offset="${s.offset}" color="${s.color}" opacity="${s.opacity}" />`).join("");
+        fillAttr = `fillType="gradient" gradientType="${gradData.type}"`;
+        fillAttr += `>\n      <gradient>\n        ${stopXml}\n      </gradient>\n    `;
+      } else {
+        fillAttr = `fill="#ffffff"`;
+      }
+    } else {
+      fillAttr = `fill="${rawFill}"`;
+    }
+
+    if (D) {
+      if (fillAttr.includes('<gradient>')) {
+        layers += `  <layer name="SVG_${i}">\n    <shape d="${D}" ${fillAttr}</layer>\n`;
+      } else {
+        layers += `  <layer name="SVG_${i}">\n    <shape d="${D}" ${fillAttr} />\n  </layer>\n`;
+      }
+    }
+  });
+
+  lastXML = `<?xml version="1.0" encoding="UTF-8"?>\n<scene name="${fileName}">\n${layers}</scene>`;
+  document.getElementById('out').value = lastXML;
+  document.getElementById('s').innerText = "Konversi Berhasil!";
+}
+
+function down() {
+  if (!lastXML) {
+    document.getElementById('s').innerText = "Belum ada XML untuk diunduh!";
+    return;
+  }
+  const blob = new Blob([lastXML], { type: 'text/xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${fileName}.xml`;
+  a.click();
+}
+</script>
+
+</body>
+</html>
