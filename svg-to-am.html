@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVG to AM XML FIX</title>
+<style>
+body{background:#0f0f0f;color:#fff;font-family:system-ui;padding:16px;margin:0}
+h1{color:#a855f7;text-align:center}
+.card{background:#1e1e1e;border-radius:16px;padding:16px;margin:12px 0;border:1px solid #333}
+textarea{width:100%;background:#111;color:#0f0;border-radius:12px;border:1px solid #444;padding:12px;font-family:monospace;box-sizing:border-box}
+button{width:100%;padding:14px;border-radius:12px;border:none;font-weight:bold;font-size:15px;margin-top:10px;cursor:pointer}
+.btn-main{background:#a855f7;color:#fff}
+.btn-green{background:#22c55e;color:#fff}
+.btn-dark{background:#272727;color:#fff;border:1px solid #444}
+.preview{width:100%;min-height:120px;background:#111;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid #333;padding:10px;overflow:auto}
+</style>
+</head>
+<body>
+<h1>SVG to AM XML</h1>
+<p style="text-align:center;color:#888;font-size:12px">FIX Xiaomi - By Ardian</p>
+
+<div class="card">
+<b>1. Masukkan SVG</b>
+<button class="btn-main" onclick="document.getElementById('realFile').click()">📁 BUKA FILE MANAGER</button>
+<input type="file" id="realFile" accept=".svg" style="display:none">
+<p style="text-align:center;color:#666;font-size:11px;margin:8px 0">— ATAU PASTE —</p>
+<textarea id="svgInput" style="height:140px" placeholder="Paste kode SVG disini..."></textarea>
+<div class="preview" id="preview">Preview disini</div>
+<div id="fileName" style="font-size:11px;color:#a855f7;text-align:center;margin-top:6px"></div>
+</div>
+
+<div class="card">
+<button class="btn-green" onclick="convert()">⚡ CONVERT KE XML</button>
+<button class="btn-dark" onclick="downloadXml()">📥 DOWNLOAD XML</button>
+<div id="status" style="font-size:13px;color:#888;text-align:center;margin-top:8px">Siap...</div>
+<textarea id="xmlOutput" style="height:200px;color:#a855f7;margin-top:10px" placeholder="Hasil XML..."></textarea>
+</div>
+
+<script>
+let lastXml="",lastName="svg_import";
+const fileInput=document.getElementById('realFile');
+fileInput.addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file) return;
+  lastName=file.name.replace('.svg','');
+  document.getElementById('fileName').textContent=file.name;
+  const r=new FileReader();
+  r.onload=ev=>{
+    document.getElementById('svgInput').value=ev.target.result;
+    document.getElementById('preview').innerHTML=ev.target.result;
+  }; r.readAsText(file);
+});
+document.getElementById('svgInput').addEventListener('input',function(){
+  if(this.value.includes('<')) document.getElementById('preview').innerHTML=this.value;
+});
+function convert(){
+  try{
+    const svgText=document.getElementById('svgInput').value.trim();
+    if(!svgText) throw "Paste SVG dulu!";
+    const parser=new DOMParser();
+    const doc=parser.parseFromString(svgText,"image/svg+xml");
+    let layers=""; let count=0;
+    doc.querySelectorAll('path,rect,circle,ellipse,polygon').forEach((el,i)=>{
+      let d=el.getAttribute('d')||"";
+      if(el.tagName=='rect'){let x=el.getAttribute('x')||0,y=el.getAttribute('y')||0,w=el.getAttribute('width')||100,h=el.getAttribute('height')||100; d=`M${x} ${y} L${parseFloat(x)+parseFloat(w)} ${y} L${parseFloat(x)+parseFloat(w)} ${parseFloat(y)+parseFloat(h)} L${x} ${parseFloat(y)+parseFloat(h)} Z`}
+      if(el.tagName=='circle'){let cx=el.getAttribute('cx')||0,cy=el.getAttribute('cy')||0,r=el.getAttribute('r')||50; d=`M${cx-r} ${cy} A${r} ${r} 0 1 0 ${parseFloat(cx)+parseFloat(r)} ${cy} A${r} ${r} 0 1 0 ${cx-r} ${cy} Z`}
+      let fill=el.getAttribute('fill')||"#ffffff";
+      if(d){layers+=`<layer name="SVG_${count}" fill="${fill}"><path d="${d.replace(/"/g,'&quot;')}" /></layer>\n`; count++;}
+    });
+    if(count==0) throw "Shape tidak ditemukan";
+    lastXml=`<?xml version="1.0"?>\n<AlightMotionProject name="${lastName}_AM">\n${layers}</AlightMotionProject>`;
+    document.getElementById('xmlOutput').value=lastXml;
+    document.getElementById('status').innerHTML="✅ Berhasil! "+count+" shape!";
+    document.getElementById('status').style.color="#22c55e";
+  }catch(err){document.getElementById('status').innerHTML="❌ "+err; document.getElementById('status').style.color="#ef4444";}
+}
+function downloadXml(){
+  if(!lastXml) convert();
+  const blob=new Blob([lastXml],{type:"text/xml"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=lastName+"_AM.xml"; a.click();
+}
+</script>
+</body>
+</html>
